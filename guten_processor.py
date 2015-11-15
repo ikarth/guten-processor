@@ -3,6 +3,8 @@ import rdflib
 import gutenberg
 import os
 import xml.etree.cElementTree as ElementTree
+from rdflib import plugin, Graph, Literal, URIRef
+from rdflib.store import Store
 
 # Grab environment variables...
 FILEPATH_RDF = os.environ.get("GUTENBERG_RDF_FILEPATH")
@@ -18,11 +20,11 @@ def openRDF(rdf_name) -> rdflib.Graph:
     g = rdflib.Graph()
     if not isinstance(rdf_name, str):
         rdf_name = "pg" + str(rdf_name) + ".rdf"
-    filepath = FILEPATH_RDF + "/" + str(rdf_name)
+    filepath = FILEPATH_RDF + os.sep + str(rdf_name)
     if not os.path.isfile(filepath):
         #print("Warning: " + str(filepath) + " does not exist")
         return
-    g.open("db")
+    g.open(FILEPATH_GUTENBERG_TEXTS + os.sep + "rdflib_db" + os.sep + "db", create = True)
     g.load(filepath)
     g.close()
     return g
@@ -137,17 +139,23 @@ def getMetadataForText(text_id):
 
 #print(getMetadataForText(18))
 def testingLogFiles():
-    with open("test_log5.txt", "w" , encoding="utf-8") as output_file:
+    with open("current_local_text_files.txt", "w" , encoding="utf-8") as output_file:
         [output_file.write(
             str(
                 str(x['id']) 
-                + " (" + str(x["type"]) 
-                + "): " + str(x['rights']) 
-                + " " + str(x['storedlocally']) 
-                + " - " + str(x['title']).replace("\n",":").replace("\r",":") 
-                + "\n"))
+                #+ " (" + str(x["type"]) 
+                #+ "): " + str(x['rights']) 
+                #+ " " + str(x['storedlocally']) 
+                #+ " - " + str(x['title']).replace("\n",":").replace("\r",":") 
+                + ","
+                ))
         for x in [getMetadataForText(i) for i in range(0, 51000)] 
-        if (x != None) and ("Text" == x['type']) and ('en' in x['language']) and ('Public domain in the USA.' in x['rights'])]
+        if (x != None) and ("Text" == x['type']) and ('en' in x['language']) and ('Public domain in the USA.' in x['rights']) and (x['storedlocally'] == True)]
+
+def testingMetadataFiles():
+    [x['id']
+        for x in [getMetadataForText(i) for i in settings.LIVE_FILE_LIST] 
+        if (x != None) and ("Text" == x['type']) and ('en' in x['language']) and ('Public domain in the USA.' in x['rights']) and (x['storedlocally'] == True)]
 
 
 #from gutenberg.acquire import load_etext
