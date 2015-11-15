@@ -136,6 +136,21 @@ def getMetadataForText(text_id):
     return result
 
 #print(getMetadataForText(18))
+def testingLogFiles():
+    with open("test_log5.txt", "w" , encoding="utf-8") as output_file:
+        [output_file.write(
+            str(
+                str(x['id']) 
+                + " (" + str(x["type"]) 
+                + "): " + str(x['rights']) 
+                + " " + str(x['storedlocally']) 
+                + " - " + str(x['title']).replace("\n",":").replace("\r",":") 
+                + "\n"))
+        for x in [getMetadataForText(i) for i in range(0, 51000)] 
+        if (x != None) and ("Text" == x['type']) and ('en' in x['language']) and ('Public domain in the USA.' in x['rights'])]
 
-#with open("test_log4.txt", "w") as output_file:
-#    [output_file.write(str(x['id'])  + " (" + str(x["type"])+ "): " + str(x['rights']) + " " + str(x['storedlocally']) + " - " + str(x['title']).replace("\n",":").replace("\r",":") + "\n") for x in [getMetadataForText(i) for i in range(0, 49000)] if (x != None) and ("Text" == x['type']) and ('en' in x['language']) and ('Public domain in the USA.' in x['rights'])]
+
+#from gutenberg.acquire import load_etext
+#from gutenberg.cleanup import strip_headers
+#text = strip_headers(load_etext(2701)).strip()
+#print(text)  # prints 'MOBY DICK; OR THE WHALE\n\nBy Herman Melville ...'
