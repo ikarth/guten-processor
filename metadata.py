@@ -62,10 +62,28 @@ def getDataNodeFromMetadata(rdf, data_type):
     result = values
     return result
 
-def getMetadataForText(text_id):
+metadata = {}
+
+def flushMetadata():
+    """
+    Clears the metadata cache.
+    """
+    global metadata
+    metadata = {}
+
+def getMetadataForText(text_id, refresh = False):
     """
     Given a text ID number or rdf filename, return the metadata.
+
+    Keeps a record of already fetched metadata in memory, so
+    it doesn't have to repeat a lookup.
+    If refresh=true, ignores the cache and replaces it with 
+    whatever new metadata is found.
     """
+    global metadata
+    if metadata[text_id] and (not refresh): # already in memory
+        return metadata[text_id]
+
     #print(str(text_id))
     rdf = openRDF(text_id)
     if not rdf:
@@ -127,6 +145,7 @@ def getMetadataForText(text_id):
         result['filename'] = filename # we only care about texts...
     
     #print(str(text_id) + " (" + str(result["type"])+ "): " + str(result['storedlocally']) + " - " + str(result['title']).replace("\n",":"))
+    metadata[text_id] = result
     return result
 
 #print(getMetadataForText(18))
