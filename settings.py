@@ -1,8 +1,7 @@
-﻿from os.path import join, dirname
-import os
+﻿import os
 import dotenv
 
-dotenv_path = join(dirname(__file__), '.env')
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 dotenv.load_dotenv(dotenv_path)
 
 # Grab environment variables...

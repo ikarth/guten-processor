@@ -26,6 +26,7 @@
   <ItemGroup>
     <Compile Include="guten_processor.py" />
     <Compile Include="metadata.py" />
+    <Compile Include="transliterate.py" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="..\..\..\pyenv\">
