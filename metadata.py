@@ -81,8 +81,12 @@ def getMetadataForText(text_id, refresh = False):
     whatever new metadata is found.
     """
     global metadata
-    if metadata[text_id] and (not refresh): # already in memory
-        return metadata[text_id]
+    try:
+        if metadata[text_id]: # already in memory
+            if (not refresh): 
+                return metadata[text_id]
+    except KeyError:
+        pass #not in memory, so load it below...
 
     #print(str(text_id))
     rdf = openRDF(text_id)

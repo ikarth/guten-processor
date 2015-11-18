@@ -33,13 +33,25 @@ def load_stopwords():
     if not stopwords:
         stopwords = set(nltk.corpus.stopwords.words("english"))
 
+    stopwords.update(["something", "nothing", "like", "could", "make", "made",
+                      "would", "isn", "hasn", "would", "shall", "one", "nobody", "somebody",
+                      "upon", "didn", "wouldn", "must", "aren", "couldn", "know", "maybe",
+                      "every", "even", "well", "said", "back", "says", "doesn", "go", "goes",
+                      "went", "going", "gone", "thing", "somewhere", "wasn", "might", "sir",
+                      "mrs", "miss", "shan", "can", "hadn", "won", "haven", "needn", "mayn",
+                      "weren", "shouldn", "get", "gets", "got", "getting", "let", "lets",
+                      "letting", "see", "sees", "seen", "saw", "seeing", "come", "coming",
+                      "came", "comes"])
+
 sentence_detector = nltk.data.load("tokenizers/punkt/english.pickle")
 
 def get_text(text_number):
     """
     Given a text number, return the filename.
     """
-    meta = metadata.getMetadataForText(text_number)
+    meta = metadata.getMetadataForText(text_number, refresh = True)
+    if not meta:
+        return
     if not meta['filename']:
         return
     return os.path.basename(meta['filename'])
@@ -130,7 +142,7 @@ def build_tags(*wcs):
     idx = 0
     for word_count in wcs:
         idx += 1
-        if idx % 100 == 0:
+        if idx % 1000 == 0:
             print(idx)
         for w in iter(word_count.keys()):
             tags[w] = pos_tag_words(word_count[w][1])
@@ -150,11 +162,11 @@ def match(source, target):
     print("Grouping POS")
     tags = build_tags(source_wc, target_wc)
     for idx, wrd in enumerate(source_wc):
-        if idx % 10 == 0:
+        if idx % 1000 == 0:
             print(idx)
         source_freqs[wrd] = math.log(source_wc[wrd][0]/source_len)
     for idx, wrd in enumerate(target_wc):
-        if idx % 10 == 0:
+        if idx % 1000 == 0:
             print(idx)
         target_freqs[wrd] = math.log(target_wc[wrd][0]/target_len)
     source_by_freq = sorted(source_freqs.keys(), key=lambda x: -source_freqs[x])
@@ -228,6 +240,11 @@ def translate(filename, translation):
 def translate_match(structure, vocab):
     return translate(structure, match(structure, vocab))
 
+
+def translate_texts():
+    with open("indep_alice2.txt", 'w', encoding='utf-8') as file:
+        output = translate_match(get_text(1), get_text(11))
+        file.write(output)
 #    print("Matching Vocabulary")
 #    translate = source_by_freq
 #    source_sentences_tagged = nltk.pos_tag_sents(source_sentences)        
