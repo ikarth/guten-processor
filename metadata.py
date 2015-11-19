@@ -2,6 +2,11 @@
 import rdflib
 import os
 import nltk
+import json
+import io
+import pickle
+import functools
+import unicodedata
 
 # Grab environment variables...
 FILEPATH_RDF = os.environ.get("GUTENBERG_RDF_FILEPATH")
@@ -62,6 +67,12 @@ def getDataNodeFromMetadata(rdf, data_type):
     result = values
     return result
 
+def getIdFromMetadata(x):
+    """
+    Takes a metadata node, returns the id
+    """
+    return x['id']
+
 metadata = {}
 
 def flushMetadata():
@@ -70,6 +81,20 @@ def flushMetadata():
     """
     global metadata
     metadata = {}
+
+def saveMetadata():
+    with open("data/metadata.json", 'w') as file:
+        json.dump(metadata, file, indent=2,sort_keys=True)
+    with open("data/metadata.pickle", 'wb') as file:
+        #json.dump(metadata, file, indent=2,sort_keys=True,)
+        pickle.dump(metadata, file = file)
+    
+def loadMetadata():
+    global metadata
+    with open("data/metadata.pickle", 'rb') as file:
+        #metadata = json.load(file)
+        metadata = pickle.load(file)
+    
 
 def getMetadataForText(text_id, refresh = False):
     """
@@ -117,7 +142,10 @@ def getMetadataForText(text_id, refresh = False):
     memberOf_data = [rdf.triples((i[2], rdflib.term.URIRef(NS['dcam'] + "memberOf"), None)) for i in rdf.triples( (None, rdflib.term.URIRef(NS['dc'] + "subject"), None))]
     bnodes = [j[0] for i in memberOf_data for j in i if j[2] == rdflib.term.URIRef(NS['dc'] + "LCSH")]
     value_data = [str(j[2].toPython()) for i in [rdf.triples( (i, rdflib.term.URIRef(NS['rdf'] + "value"), None)) for i in bnodes] for j in i]
-    result['subjects'] = value_data
+    clean_data = list(map(lambda x: unicodedata.normalize("NFKD" , x.casefold()), value_data))
+    split_data = [idm for sublist in list(map(lambda x: x.split(" -- "), clean_data)) for idm in sublist]
+    result['subject'] = clean_data
+    result['subjects'] = split_data
     # languages
     result['language'] = getDataNodeFromMetadata(rdf, "language")
     # type
@@ -151,6 +179,93 @@ def getMetadataForText(text_id, refresh = False):
     #print(str(text_id) + " (" + str(result["type"])+ "): " + str(result['storedlocally']) + " - " + str(result['title']).replace("\n",":"))
     metadata[text_id] = result
     return result
+
+def loadAllMetadata(only_local = True):
+    local = {}
+    #loadMetadata()
+    for i in range(0, 54000):
+        if i % 5000 == 0: print(i)
+        x = getMetadataForText(i)
+        if x:
+            if (x['storedlocally'] or (not only_local)):
+                local.update(x)
+    saveMetadata()
+    return local
+
+
+def getAllSubjects():
+    """
+    Return a set of all of the valid subjects in the metadata
+    """
+    if not metadata:
+        loadMetadata()
+    subject_list = set()
+    subjects = set()
+    lcc = set()
+    #print (metadata)
+    local = {}
+    for j in metadata:
+        #print(j)
+        #print(metadata[j])
+        if ((True == metadata[j]['storedlocally']) and 
+            ('en' in metadata[j]['language']) and 
+            (metadata[j]['type'] == "Text")):
+            [subject_list.add(k) for k in metadata[j]['subject']]
+            [subjects.add(k) for k in metadata[j]['subjects']]
+            [lcc.add(k) for k in metadata[j]['LCC']]
+            local[j] = metadata[j]
+    occurances = {}
+    subject_index = {}
+    for i in enumerate(subjects):
+        print(i)
+        #total = [j for j in metadata if (j in local[i]['subjects'])]
+        #books_with_subject = filter(lambda j: (i in j['subjects']), local)
+        #filter( )
+        #book_ids = map(getIdFromMetadata, books_with_subject)
+        #[print(k) for k in book_ids]
+        books_with_subject = []#{k:v for (k,v) in local.items() if i[1] in v['subjects']}
+        for k,v in local.items():
+            #print (v['subjects'])
+            #print (i[1])
+            if i[1] in v['subjects']:
+                books_with_subject.append(k)
+        print(list(books_with_subject))
+        #book_ids = list(map(getIdFromMetadata, books_with_subject))
+        #print(book_ids)
+        sum = len(list(books_with_subject)) #functools.reduce(lambda x, y: (x + y), books_with_subject)
+        print(sum)
+        #occurances[i] = [sum, books_with_subject]
+        subject_index[i[0]] = {'id': i[0], 'name':i[1], 'books':list(books_with_subject), 'occurrences':sum}
+
+    #subject_list = dict(zip(subjects, occurances))
+    sorted_sbj = sorted(subject_index.items(), key = lambda o: o[1]['occurrences'])
+    saveMetadataIndex(subject_index, "subjects")
+    return subjects#, lcc, occurances
+
+def saveMetadataIndex(subject_list, filename):
+    with open("data/{}.json".format(filename), 'w', encoding='utf-8') as file:
+        json.dump(subject_list, file, indent=2,sort_keys=True)
+    with open("data/{}.pickle".format(filename), 'wb') as file:
+        pickle.dump(subject_list, file = file)
+
+def saveSubjects(subject_list):
+    with open("data/subjects.json", 'w') as file:
+        json.dump(subject_list, file, indent=2,sort_keys=True)
+    with open("data/subjects.pickle", 'wb') as file:
+        pickle.dump(subject_list, file = file)
+    
+def loadSubjects():
+    with open("data/subjects.pickle", 'rb') as file:
+        #metadata = json.load(file)
+        return pickle.load(file)
+
+def getMatches():
+    """
+    Return a dict of all of the metadata entires that match the query
+    """
+    pass
+
+
 
 #print(getMetadataForText(18))
 def testingLogFiles():

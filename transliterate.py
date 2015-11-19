@@ -239,6 +239,53 @@ def translate_texts():
     with open("indep_alice2.txt", 'w', encoding='utf-8') as file:
         output = translate_match(get_text(1), get_text(11))
         file.write(output)
+
+
+
+
+
+
+
+
+
+
+def train():
+    pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #    print("Matching Vocabulary")
 #    translate = source_by_freq
 #    source_sentences_tagged = nltk.pos_tag_sents(source_sentences)        
