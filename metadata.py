@@ -106,6 +106,8 @@ def getMetadataForText(text_id, refresh = False):
     whatever new metadata is found.
     """
     global metadata
+    if not metadata:
+        loadMetadata()
     try:
         if metadata[text_id]: # already in memory
             if (not refresh): 
@@ -143,9 +145,10 @@ def getMetadataForText(text_id, refresh = False):
     bnodes = [j[0] for i in memberOf_data for j in i if j[2] == rdflib.term.URIRef(NS['dc'] + "LCSH")]
     value_data = [str(j[2].toPython()) for i in [rdf.triples( (i, rdflib.term.URIRef(NS['rdf'] + "value"), None)) for i in bnodes] for j in i]
     clean_data = list(map(lambda x: unicodedata.normalize("NFKD" , x.casefold()), value_data))
-    split_data = [idm for sublist in list(map(lambda x: x.split(" -- "), clean_data)) for idm in sublist]
+    split_data = [idm for sublist in list(map(lambda x: str(x).split("--"), clean_data)) for idm in sublist]
+    clean_split = [wrd.strip() for wrd in split_data]
     result['subject'] = clean_data
-    result['subjects'] = split_data
+    result['subjects'] = clean_split
     # languages
     result['language'] = getDataNodeFromMetadata(rdf, "language")
     # type
@@ -182,7 +185,7 @@ def getMetadataForText(text_id, refresh = False):
 
 def loadAllMetadata(only_local = True):
     local = {}
-    #loadMetadata()
+    loadMetadata()
     for i in range(0, 54000):
         if i % 5000 == 0: print(i)
         x = getMetadataForText(i)
@@ -214,32 +217,27 @@ def getAllSubjects():
             [subjects.add(k) for k in metadata[j]['subjects']]
             [lcc.add(k) for k in metadata[j]['LCC']]
             local[j] = metadata[j]
-    occurances = {}
     subject_index = {}
     for i in enumerate(subjects):
-        print(i)
-        #total = [j for j in metadata if (j in local[i]['subjects'])]
-        #books_with_subject = filter(lambda j: (i in j['subjects']), local)
-        #filter( )
-        #book_ids = map(getIdFromMetadata, books_with_subject)
-        #[print(k) for k in book_ids]
         books_with_subject = []#{k:v for (k,v) in local.items() if i[1] in v['subjects']}
         for k,v in local.items():
-            #print (v['subjects'])
-            #print (i[1])
             if i[1] in v['subjects']:
                 books_with_subject.append(k)
-        print(list(books_with_subject))
-        #book_ids = list(map(getIdFromMetadata, books_with_subject))
-        #print(book_ids)
-        sum = len(list(books_with_subject)) #functools.reduce(lambda x, y: (x + y), books_with_subject)
-        print(sum)
-        #occurances[i] = [sum, books_with_subject]
+        sum = len(list(books_with_subject))
         subject_index[i[0]] = {'id': i[0], 'name':i[1], 'books':list(books_with_subject), 'occurrences':sum}
+    
+    lcc_index = {}
+    for i in enumerate(lcc):
+        books_with_subject = []#{k:v for (k,v) in local.items() if i[1] in v['subjects']}
+        for k,v in local.items():
+            if i[1] in v['LCC']:
+                books_with_subject.append(k)
+        sum = len(list(books_with_subject))
+        lcc_index[i[0]] = {'id': i[0], 'name':i[1], 'books':list(books_with_subject), 'occurrences':sum}
 
-    #subject_list = dict(zip(subjects, occurances))
     sorted_sbj = sorted(subject_index.items(), key = lambda o: o[1]['occurrences'])
     saveMetadataIndex(subject_index, "subjects")
+    saveMetadataIndex(lcc_index, "lcc")
     return subjects#, lcc, occurances
 
 def saveMetadataIndex(subject_list, filename):
@@ -247,6 +245,10 @@ def saveMetadataIndex(subject_list, filename):
         json.dump(subject_list, file, indent=2,sort_keys=True)
     with open("data/{}.pickle".format(filename), 'wb') as file:
         pickle.dump(subject_list, file = file)
+
+def loadMetdataIndex(filename):
+    with open("data/{}.pickle".format(filename), 'rb') as file:
+        return pickle.load(file)
 
 def saveSubjects(subject_list):
     with open("data/subjects.json", 'w') as file:
@@ -264,6 +266,14 @@ def getMatches():
     Return a dict of all of the metadata entires that match the query
     """
     pass
+
+subject_list = {}
+def getBooklistFromSubject(subject_num):
+    global subject_list
+    if not subject_list:
+        subject_list = loadSubjects()
+    print(subject_list[subject_num])
+    return subject_list[subject_num]['books']
 
 
 

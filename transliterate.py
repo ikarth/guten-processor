@@ -5,6 +5,7 @@ import io
 import nltk
 import collections
 import json
+import gensim
 from gensim.models import word2vec 
 
 FILEPATH_RDF = os.environ.get("GUTENBERG_RDF_FILEPATH")
@@ -241,19 +242,40 @@ def translate_texts():
         file.write(output)
 
 
+class SentenceParser(object):
+    def __init__(self, booklist):
+        self.booklist = booklist
 
+    def __iter__(self):
+        for book in self.booklist:
+            for sen in corpus_guten.sents(get_text(book)):
+                yield sen
 
+def getBooksBySubject(subject_num):
+    booklist = metadata.getBooklistFromSubject(subject_num)
+    sentences = SentenceParser(booklist)
+    model = gensim.models.Word2Vec(sentences) 
 
-
-
-
-
-
-def train():
     pass
 
 
 
+def train():
+    # get sentences
+    
+    pass
+
+
+
+def countWords(text_no):
+    return len(list(corpus_guten.words(get_text(int(text_no)))))
+
+def countWordsList(booklist):
+    count = 0
+    for b in booklist:
+        count += countWords(b)
+        print(count)
+    return count
 
 
 
