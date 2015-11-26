@@ -82,6 +82,16 @@ def flushMetadata():
     global metadata
     metadata = {}
 
+def rebuildMetadata():
+    global metadata
+    flushMetadata()
+    for i in range(0, 54000):
+        if i % 1000 == 0: print(i)
+        x = getMetadataForText(i, refresh=True)
+    saveMetadata()
+    return
+
+
 def saveMetadata():
     with open("data/metadata.json", 'w') as file:
         json.dump(metadata, file, indent=2,sort_keys=True)
@@ -107,6 +117,7 @@ def getMetadataForText(text_id, refresh = False):
     """
     global metadata
     if not metadata:
+        metadata = {}
         loadMetadata()
     try:
         if metadata[text_id]: # already in memory
@@ -168,16 +179,18 @@ def getMetadataForText(text_id, refresh = False):
         if os.path.isfile(filename) and os.path.exists(filename):
             result['storedlocally'] = True
         else:
-            unicode_filename = os.path.abspath(GUTENBERG_CORPUS + os.sep + str(text_id) + "-0.txt")
+            unicode_filename = os.path.abspath(GUTENBERG_CORPUS + os.sep + str(text_id) + "-8.txt")
             if os.path.isfile(unicode_filename) and os.path.exists(unicode_filename):
                 result['storedlocally'] = True
                 filename = unicode_filename
             else:
-                ascii_filename = os.path.abspath(GUTENBERG_CORPUS + os.sep + str(text_id) + "-8.txt")
+                ascii_filename = os.path.abspath(GUTENBERG_CORPUS + os.sep + str(text_id) + "-0.txt")
                 if os.path.isfile(ascii_filename) and os.path.exists(ascii_filename):
                     result['storedlocally'] = True
                     filename = ascii_filename
         result['filename'] = filename # we only care about texts...
+    else:
+        result['storedlocally'] = False
     
     #print(str(text_id) + " (" + str(result["type"])+ "): " + str(result['storedlocally']) + " - " + str(result['title']).replace("\n",":"))
     metadata[text_id] = result
@@ -275,7 +288,11 @@ def getBooklistFromSubject(subject_num):
     print(subject_list[subject_num])
     return subject_list[subject_num]['books']
 
-
+def getBooklistAllBooks():
+    if not metadata:
+        loadMetadata()
+    booklist = list([i for i in metadata if metadata[i]['storedlocally']])
+    return booklist
 
 #print(getMetadataForText(18))
 def testingLogFiles():

@@ -6,7 +6,25 @@ import nltk
 import collections
 import json
 import gensim
+import unicodedata
 from gensim.models import word2vec 
+from nltk.corpus.reader.util import StreamBackedCorpusView
+
+import logging
+LOG_FILENAME="transliterate.log"
+logging.basicConfig(format="%(asctime)s : %(levelname)s : %(message)s", level=logging.INFO, filename=LOG_FILENAME)
+logger = logging.getLogger('logger')
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler("lit.log")
+fh.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+logger.addHandler(fh)
+logger.addHandler(ch)
+
 
 FILEPATH_RDF = os.environ.get("GUTENBERG_RDF_FILEPATH")
 FILEPATH_GUTENBERG_TEXTS = os.environ.get("GUTENBERG_DATA")
@@ -20,7 +38,78 @@ def load_word2vec():
     w2v = word2vec.Word2Vec.load_word2vec_format(FILEPATH_DATA + os.sep + "word2vec" + os.sep + "GoogleNews-vectors-negative300.bin.gz",binary = True).similarity
 #load_word2vec()
 
-corpus_guten = nltk.corpus.reader.plaintext.PlaintextCorpusReader(GUTENBERG_CORPUS, fileids = r'.*\.txt')
+class DirtyUnicodePathPointer(nltk.data.FileSystemPathPointer):
+    def __init__(self, _path):
+        """
+        Create a new path pointer for the given absolute path.
+
+        :raise IOError: If the given path does not exist.
+        """
+
+        _path = os.path.abspath(_path)
+        if not os.path.exists(_path):
+            raise IOError('No such file or directory: %r' % _path)
+        self._path = _path
+
+    def open(self, encoding=None):
+        stream = open(self._path, 'rb')
+        if encoding is not None:
+            stream = nltk.data.SeekableUnicodeStreamReader(stream, encoding)
+            stream.errors = 'replace'
+        return stream
+
+class DirtyUnicodeCorpusView(StreamBackedCorpusView):
+    def __init__(self, *args, **kwargs):
+        StreamBackedCorpusView.__init__(self, *args, **kwargs)
+
+    def _open(self):
+        """
+        Open the file stream associated with this corpus view.  This
+        will be called performed if any value is read from the view
+        while its file stream is closed.
+        """
+        if isinstance(self._fileid, nltk.data.PathPointer):
+            id = DirtyUnicodePathPointer(self._fileid)
+            self._fileid = id
+            self._stream = self._fileid.open(self._encoding)
+        elif self._encoding:
+            self._stream = SeekableUnicodeStreamReader(
+                open(self._fileid, 'rb', encoding='utf-8', errors='replace'), self._encoding)
+        else:
+            self._stream = open(self._fileid, 'rb')
+
+
+
+class DirtyUnicodeCorpusReader(nltk.corpus.reader.plaintext.PlaintextCorpusReader):
+    CorpusView = DirtyUnicodeCorpusView
+
+    #def __init__(self, *args, **kwargs):
+    #    nltk.corpus.reader.plaintext.PlaintextCorpusReader.__init__(self, *args, **kwargs)
+
+    #def _read_sent_block(self, stream):
+    #    sents = []
+    #    for para in self._para_block_reader(stream):
+    #        sents.extend([self._word_tokenizer.tokenize(sent)
+    #                      for sent in self._sent_tokenizer.tokenize(para)])
+    #    return sents
+
+def custom_read_blankline_block(stream):
+    s = ''
+    while True:
+        line = stream.readline()
+        # End of file:
+        if not line:
+            if s: return [s]
+            else: return []
+        # Blank line:
+        elif line and not line.strip():
+            if s: return [s]
+        # Other line:
+        else:
+            s += line
+
+corpus_guten = nltk.corpus.reader.plaintext.PlaintextCorpusReader(GUTENBERG_CORPUS, fileids = r'.*\.txt', encoding="utf-8")
+#corpus_guten = nltk.data.SeekableUnicodeStreamReader(GUTENBERG_CORPUS, fileids = r'.*\.txt', encoding="utf-8")
 
 stopwords = None
 def load_stopwords():
@@ -49,6 +138,7 @@ def get_text(text_number):
         return
     if not meta['filename']:
         return
+    #logger.debug(os.path.basename(meta['filename']))
     return os.path.basename(meta['filename'])
 
 def count_words(text):
@@ -249,14 +339,34 @@ class SentenceParser(object):
     def __iter__(self):
         for book in self.booklist:
             for sen in corpus_guten.sents(get_text(book)):
+                #print(sen)
+                #norm_sen = [unicodedata.normalize('NFKC', wrd) for wrd in sen]
+                #print(norm_sen)
                 yield sen
 
 def getBooksBySubject(subject_num):
     booklist = metadata.getBooklistFromSubject(subject_num)
-    sentences = SentenceParser(booklist)
-    model = gensim.models.Word2Vec(sentences) 
+    for b in booklist:
+        print (b)
+        #logger.warning(str(b))
+        #logger.info(str(b))
+        #logging.warning(str(b))
+        sentences = SentenceParser([b])
+        model = gensim.models.Word2Vec(sentences,min_count=3,size=300,workers=12) 
+        
+    return model
 
-    pass
+def getBooksByList(booklist):
+    global logger
+    sentences = SentenceParser(booklist)
+    try:
+        model = gensim.models.Word2Vec(sentences,min_count=5,size=1,workers=6) 
+    except UnicodeDecodeError as err:
+        print(str(err))
+        logger.error(str(err))
+        #raise
+    return # model
+    
 
 
 
@@ -282,7 +392,17 @@ def countWordsList(booklist):
 
 
 
-
+def test():
+    global logger
+    booklist = metadata.getBooklistAllBooks()[22983:]
+    for b in booklist:
+        print(b)
+        logger.info(str("Starting file: " + str(b)))
+        sentences = SentenceParser(booklist)
+        #for s in sentences:
+            #print(s)
+        #    pass
+        m = getBooksByList([b])
 
 
 
